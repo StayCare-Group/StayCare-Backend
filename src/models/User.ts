@@ -11,6 +11,7 @@ export interface IUser extends Document {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  refresh_token?: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -49,6 +50,10 @@ const userSchema = new Schema<IUser>(
     is_active: {
       type: Boolean,
       default: true,
+    },
+    refresh_token: {
+      type: String,
+      select: false,
     },
     created_at: {
       type: Date,

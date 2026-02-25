@@ -14,30 +14,9 @@ export const createUser = async (req: Request, res: Response) => {
       password_hash,
     });
 
-    const { password_hash: _, ...safeUser } = user.toObject();
+    const { password_hash: _, refresh_token, ...safeUser } = user.toObject();
     return res.status(201).json(safeUser);
   } catch (error) {
     return res.status(400).json({ error: "User creation failed" });
-  }
-};
-
-export const loginUser = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email }).select("+password_hash");
-    if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const { password_hash: _, ...safeUser } = user.toObject();
-    return res.status(200).json({ user: safeUser });
-  } catch (error) {
-    return res.status(400).json({ error: "Login failed" });
   }
 };
