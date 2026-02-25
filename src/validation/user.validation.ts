@@ -8,4 +8,12 @@ export const createUserSchema = z.object({
   }),
 });
 
+export const loginUserSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+  }),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>["body"];
+export type LoginUserInput = z.infer<typeof loginUserSchema>["body"];
