@@ -50,7 +50,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(200).json({
       user: {
         id: user._id.toString(),
-        role: payloadRole,
+        role: user.role,
         email: safeUser.email,
         name: safeUser.name,
       },
@@ -90,7 +90,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
     return res.status(200).json({
       user: {
         id: user._id.toString(),
-        role: payloadRole,
+        role: user.role,
         email: user.email,
         name: user.name,
       },
