@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
+import type { UserRole } from "../utils/jwt";
 import {
   signAccessToken,
   signRefreshToken,
@@ -9,29 +10,40 @@ import {
   getRefreshTokenCookieOptions,
   getClearCookieOptions,
 } from "../utils/jwt";
+import { sendSuccess, sendError } from "../utils/response";
 
-const mapRoleToPayloadRole = (role: string): "user" | "admin" =>
-  role === "admin" ? "admin" : "user";
+const SALT_ROUNDS = 10;
 
-export const login = async (req: Request, res: Response) => {
+const toTokenRole = (role: string): UserRole =>
+  (["admin", "client", "driver", "staff"].includes(role)
+    ? role
+    : "client") as UserRole;
+
+export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password, phone, language, role } = req.body;
 
-    const user = await User.findOne({ email }).select("+password_hash +refresh_token");
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return sendError(res, 409, "Email already in use");
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    const payloadRole = mapRoleToPayloadRole(user.role);
+    const user = await User.create({
+      name,
+      email,
+      password_hash,
+      phone,
+      language,
+      role: role || "client",
+    });
+
+    const tokenRole = toTokenRole(user.role);
 
     const accessToken = signAccessToken({
       userId: user._id.toString(),
-      role: payloadRole,
+      role: tokenRole,
     });
 
     const refreshToken = signRefreshToken({
@@ -41,22 +53,67 @@ export const login = async (req: Request, res: Response) => {
     user.refresh_token = refreshToken;
     await user.save();
 
-    const { password_hash: _, refresh_token, ...safeUser } = user.toObject();
+    res
+      .cookie("accessToken", accessToken, getAccessTokenCookieOptions())
+      .cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
+
+    return sendSuccess(res, 201, "Registration successful", {
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    return sendError(res, 400, "Registration failed");
+  }
+};
+
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email }).select(
+      "+password_hash +refresh_token",
+    );
+    if (!user) {
+      return sendError(res, 401, "Invalid credentials");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      return sendError(res, 401, "Invalid credentials");
+    }
+
+    const tokenRole = toTokenRole(user.role);
+
+    const accessToken = signAccessToken({
+      userId: user._id.toString(),
+      role: tokenRole,
+    });
+
+    const refreshToken = signRefreshToken({
+      userId: user._id.toString(),
+    });
+
+    user.refresh_token = refreshToken;
+    await user.save();
 
     res
       .cookie("accessToken", accessToken, getAccessTokenCookieOptions())
       .cookie("refreshToken", refreshToken, getRefreshTokenCookieOptions());
 
-    return res.status(200).json({
+    return sendSuccess(res, 200, "Login successful", {
       user: {
         id: user._id.toString(),
+        name: user.name,
+        email: user.email,
         role: user.role,
-        email: safeUser.email,
-        name: safeUser.name,
       },
     });
   } catch (error) {
-    return res.status(400).json({ message: "Login failed" });
+    return sendError(res, 400, "Login failed");
   }
 };
 
@@ -65,7 +122,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
     const token = req.cookies?.refreshToken as string | undefined;
 
     if (!token) {
-      return res.status(401).json({ message: "Refresh token missing" });
+      return sendError(res, 401, "Refresh token missing");
     }
 
     const decoded = verifyRefreshToken(token);
@@ -75,28 +132,28 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
     );
 
     if (!user || user.refresh_token !== token) {
-      return res.status(401).json({ message: "Invalid refresh token" });
+      return sendError(res, 401, "Invalid refresh token");
     }
 
-    const payloadRole = mapRoleToPayloadRole(user.role);
+    const tokenRole = toTokenRole(user.role);
 
     const accessToken = signAccessToken({
       userId: user._id.toString(),
-      role: payloadRole,
+      role: tokenRole,
     });
 
     res.cookie("accessToken", accessToken, getAccessTokenCookieOptions());
 
-    return res.status(200).json({
+    return sendSuccess(res, 200, "Token refreshed", {
       user: {
         id: user._id.toString(),
-        role: user.role,
-        email: user.email,
         name: user.name,
+        email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
-    return res.status(401).json({ message: "Could not refresh access token" });
+    return sendError(res, 401, "Could not refresh access token");
   }
 };
 
@@ -115,9 +172,24 @@ export const logout = async (req: Request, res: Response) => {
       .clearCookie("accessToken", getClearCookieOptions())
       .clearCookie("refreshToken", getClearCookieOptions());
 
-    return res.status(200).json({ message: "Logged out" });
+    return sendSuccess(res, 200, "Logged out");
   } catch (error) {
-    return res.status(400).json({ message: "Logout failed" });
+    return sendError(res, 400, "Logout failed");
   }
 };
 
+export const getMe = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user!.userId)
+      .select("-password_hash -refresh_token")
+      .populate("client");
+
+    if (!user) {
+      return sendError(res, 404, "User not found");
+    }
+
+    return sendSuccess(res, 200, "Current user", { user });
+  } catch (error) {
+    return sendError(res, 400, "Failed to fetch user");
+  }
+};

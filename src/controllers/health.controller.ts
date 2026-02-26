@@ -1,9 +1,10 @@
 import { type Request, type Response } from "express";
+import { sendSuccess, sendError } from "../utils/response";
 
-export const healthCheck = async (req: Request, res: Response) => {
+export const healthCheck = async (_req: Request, res: Response) => {
   try {
-    res.status(200).json({ message: "Server is running" });
+    return sendSuccess(res, 200, "Server is running");
   } catch (error) {
-    res.status(500).json({ error: "Server is not running" });
+    return sendError(res, 500, "Server is not running");
   }
 };

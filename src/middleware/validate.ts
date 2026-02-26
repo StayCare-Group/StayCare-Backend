@@ -1,8 +1,8 @@
-import { AnyZodObject, ZodError } from "zod";
-import { Request, Response, NextFunction } from "express";
+import { z } from "zod";
+import type { Request, Response, NextFunction } from "express";
 
 export const validate =
-  (schema: AnyZodObject) =>
+  (schema: z.ZodType) =>
   (req: Request, res: Response, next: NextFunction) => {
     try {
       schema.parse({
@@ -13,16 +13,16 @@ export const validate =
 
       next();
     } catch (error) {
-      if (error instanceof ZodError) {
-        console.log(error.issues); // 👈 log real reason
-
+      if (error instanceof z.ZodError) {
         return res.status(400).json({
+          success: false,
           message: "Validation failed",
-          errors: error.issues,
+          data: error.issues,
         });
       }
 
       return res.status(400).json({
+        success: false,
         message: "Unknown validation error",
       });
     }
