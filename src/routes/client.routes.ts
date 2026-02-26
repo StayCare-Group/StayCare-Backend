@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createClient,
+  createClientForCurrentUser,
   getAllClients,
   getClientById,
   updateClient,
@@ -22,6 +23,13 @@ import { authorize } from "../middleware/authorize";
 const router = Router();
 
 router.use(authenticate);
+
+router.post(
+  "/self",
+  authorize("client", "admin", "staff"),
+  validate(createClientSchema),
+  createClientForCurrentUser,
+);
 
 router.post(
   "/",

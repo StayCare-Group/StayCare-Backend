@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Client from "../models/Clients";
+import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
 
 export const createClient = async (req: Request, res: Response) => {
@@ -118,5 +119,43 @@ export const deleteProperty = async (req: Request, res: Response) => {
     return sendSuccess(res, 200, "Property deleted", client);
   } catch (error) {
     return sendError(res, 400, "Failed to delete property");
+  }
+};
+
+export const createClientForCurrentUser = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendError(res, 404, "User not found");
+    }
+
+    if (user.client) {
+      return sendError(res, 400, "Client is already linked to this user");
+    }
+
+    const existing = await Client.findOne({ email: req.body.email });
+    if (existing) {
+      return sendError(res, 409, "Client with this email already exists");
+    }
+
+    const client = await Client.create(req.body);
+
+    user.client = client._id as any;
+    await user.save();
+
+    return sendSuccess(res, 201, "Client created for current user", {
+      client,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        client: client._id.toString(),
+      },
+    });
+  } catch (error) {
+    return sendError(res, 400, "Client creation failed");
   }
 };
