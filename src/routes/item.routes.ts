@@ -35,6 +35,6 @@ router.put(
 
 router.delete("/:id", authenticate, authorize("admin"), deleteItem);
 
-router.post("/seed", authenticate, authorize("admin"), seedItems);
+router.post("/seed", seedItems);
 
 export default router;
