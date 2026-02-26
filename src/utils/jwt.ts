@@ -50,10 +50,12 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   return jwt.verify(token, refreshTokenSecret) as RefreshTokenPayload;
 };
 
+// Cross-origin (e.g. Vercel frontend + Render backend) requires sameSite: "none" and secure: true
+const isProduction = process.env.NODE_ENV === "production";
 const baseCookieOptions: CookieOptions = {
   httpOnly: true,
-  sameSite: "strict",
-  secure: process.env.NODE_ENV === "production",
+  sameSite: isProduction ? "none" : "strict",
+  secure: isProduction,
 };
 
 export const getAccessTokenCookieOptions = (): CookieOptions => ({
