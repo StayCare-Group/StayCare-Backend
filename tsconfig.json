@@ -9,11 +9,7 @@
     // Compile to CommonJS for Node.js runtime
     "module": "commonjs",
     "target": "es2019",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "types": ["node"],
 
     // Other Outputs
     "sourceMap": true,

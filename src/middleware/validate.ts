@@ -12,13 +12,13 @@ export const validate =
       });
 
       next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        console.log(error.issues); // 👈 log real reason
+    } catch (err: unknown) {
+      if (err instanceof ZodError) {
+        console.log(err.issues);
 
         return res.status(400).json({
           message: "Validation failed",
-          errors: error.issues,
+          errors: err.issues,
         });
       }
 
