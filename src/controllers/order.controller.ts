@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Order from "../models/Orders";
+import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
 
 const generateOrderNumber = (): string => {
@@ -13,7 +14,7 @@ const generateOrderNumber = (): string => {
 
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const orderData = {
+    const orderData: Record<string, any> = {
       ...req.body,
       order_number: generateOrderNumber(),
       status: "Pending",
@@ -35,6 +36,15 @@ export const createOrder = async (req: Request, res: Response) => {
       };
     }
 
+    // Order.client must be the Clients document id (ref "Clients"), not the User id.
+    if (req.user!.role === "client") {
+      const user = await User.findById(req.user!.userId).select("client");
+      if (!user?.client) {
+        return sendError(res, 400, "Your account has no linked client. Complete company setup first.");
+      }
+      orderData.client = user.client;
+    }
+
     const order = await Order.create(orderData);
     return sendSuccess(res, 201, "Order created", order);
   } catch (error) {
@@ -51,7 +61,9 @@ export const getAllOrders = async (req: Request, res: Response) => {
     if (service_type) filter.service_type = service_type;
 
     if (req.user!.role === "client") {
-      filter.client = req.user!.userId;
+      const user = await User.findById(req.user!.userId).select("client");
+      if (user?.client) filter.client = user.client;
+      else filter.client = null; // no linked client -> no orders
     } else if (client) {
       filter.client = client;
     }
@@ -87,11 +99,14 @@ export const getOrderById = async (req: Request, res: Response) => {
       return sendError(res, 404, "Order not found");
     }
 
-    if (
-      req.user!.role === "client" &&
-      (order.client as any)._id?.toString() !== req.user!.userId
-    ) {
-      return sendError(res, 403, "Forbidden");
+    if (req.user!.role === "client") {
+      const user = await User.findById(req.user!.userId).select("client");
+      const orderClientId =
+        (order.client as any)?._id?.toString() ?? (order.client as any)?.toString?.();
+      const userClientId = user?.client?.toString?.();
+      if (!userClientId || orderClientId !== userClientId) {
+        return sendError(res, 403, "Forbidden");
+      }
     }
 
     return sendSuccess(res, 200, "Order retrieved", order);
