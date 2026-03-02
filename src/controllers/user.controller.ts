@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";

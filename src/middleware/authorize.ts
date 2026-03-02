@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import type { UserRole } from "../utils/jwt";
+import type { Request, Response, NextFunction } from "express";
 
 export const authorize =
   (...allowedRoles: UserRole[]) =>
