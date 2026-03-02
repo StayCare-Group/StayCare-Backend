@@ -1,3 +1,5 @@
+import { Request, Response, NextFunction } from "express";
+import { verifyAccessToken, type AccessTokenPayload } from "../utils/jwt";
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken, AccessTokenPayload } from "../utils/jwt";
 
@@ -18,7 +20,9 @@ export const authenticate = (
     const token = req.cookies?.accessToken as string | undefined;
 
     if (!token) {
-      return res.status(401).json({ message: "Authentication required" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
     }
 
     const payload = verifyAccessToken(token);
@@ -26,7 +30,9 @@ export const authenticate = (
 
     return next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid or expired token" });
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid or expired token" });
   }
 };
 

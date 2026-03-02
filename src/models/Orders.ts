@@ -87,7 +87,7 @@ const ordersSchema = new Schema<IOrders>(
     },
     deliver_id: {
         type: Schema.Types.ObjectId,
-        ref: "Users",
+        ref: "User",
     },
     status: {
         type: String,
@@ -144,7 +144,7 @@ const ordersSchema = new Schema<IOrders>(
             },
             changed_by: {
                 type: Schema.Types.ObjectId,
-                ref: "Users",
+                ref: "User",
                 required: true,
             },
             timestamp: {
