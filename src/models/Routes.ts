@@ -16,7 +16,7 @@ const routesSchema = new Schema<IRoutes>(
     },
     driver: {
         type: Schema.Types.ObjectId,
-        ref: "Users",
+        ref: "User",
         required: true,
     },
     area: {
