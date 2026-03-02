@@ -10,7 +10,9 @@ const orderItemSchema = z.object({
 
 export const createOrderSchema = z.object({
   body: z.object({
-    client: z.string().min(1),
+    // For admin/staff, client must be provided.
+    // For clients, the controller will override this field from the authenticated user.
+    client: z.string().min(1).optional(),
     property: z.string().optional(),
     service_type: z.enum(["standard", "express"]),
     pickup_date: z.string().datetime({ offset: true }).or(z.string().min(1)),
@@ -117,7 +119,7 @@ export const deliveryConfirmSchema = z.object({
         }),
       )
       .optional(),
-    confirmation_method: z.enum(["signature", "pin", "photo"]),
+    confirmation_method: z.enum(["signature", "pin", "photo"]).optional(),
     notes: z.string().optional(),
   }),
   params: z.object({ id: z.string() }),

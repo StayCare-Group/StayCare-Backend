@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Invoice from "../models/Invoices";
 import Order from "../models/Orders";
+import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
 
 const generateInvoiceNumber = (): string => {
@@ -41,6 +42,16 @@ export const getAllInvoices = async (req: Request, res: Response) => {
     if (status) filter.status = status;
     if (client) filter.client = client;
 
+    if (req.user!.role === "client") {
+      const user = await User.findById(req.user!.userId).select("client");
+      if (user?.client) {
+        filter.client = user.client;
+      } else {
+        // No linked client -> ensure no invoices are returned
+        filter.client = null;
+      }
+    }
+
     if (from || to) {
       filter.issue_date = {};
       if (from) filter.issue_date.$gte = new Date(from as string);
@@ -66,6 +77,18 @@ export const getInvoiceById = async (req: Request, res: Response) => {
 
     if (!invoice) {
       return sendError(res, 404, "Invoice not found");
+    }
+
+    if (req.user!.role === "client") {
+      const user = await User.findById(req.user!.userId).select("client");
+      const invoiceClientId =
+        (invoice.client as any)?._id?.toString() ??
+        (invoice.client as any)?.toString?.();
+      const userClientId = user?.client?.toString?.();
+
+      if (!userClientId || invoiceClientId !== userClientId) {
+        return sendError(res, 403, "Forbidden");
+      }
     }
 
     return sendSuccess(res, 200, "Invoice retrieved", invoice);

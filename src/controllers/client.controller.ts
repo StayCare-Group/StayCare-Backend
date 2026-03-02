@@ -32,6 +32,17 @@ export const getClientById = async (req: Request, res: Response) => {
     if (!client) {
       return sendError(res, 404, "Client not found");
     }
+
+    if (req.user!.role === "client") {
+      const user = await User.findById(req.user!.userId).select("client");
+      const userClientId = user?.client?.toString?.();
+      const requestedId = req.params.id;
+
+      if (!userClientId || userClientId !== requestedId) {
+        return sendError(res, 403, "Forbidden");
+      }
+    }
+
     return sendSuccess(res, 200, "Client retrieved", client);
   } catch (error) {
     return sendError(res, 400, "Failed to fetch client");
