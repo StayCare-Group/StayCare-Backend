@@ -163,63 +163,16 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
 export const getMe = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user!.userId)
-      .select("-password_hash -refresh_token");
+      .select("-password_hash -refresh_token")
+      .populate("client");
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return sendError(res, 404, "User not found");
     }
 
-    return res.status(200).json({ data: { user } });
+    return sendSuccess(res, 200, "Current user", { user });
   } catch (error) {
-    return res.status(400).json({ message: "Failed to fetch user" });
-  }
-};
-
-export const updateMe = async (req: Request, res: Response) => {
-  try {
-    const allowedFields = ["name", "email", "phone", "language"];
-    const updateData: Record<string, any> = { updated_at: new Date() };
-
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
-      }
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user!.userId,
-      updateData,
-      { new: true },
-    ).select("-password_hash -refresh_token");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json({ data: { user } });
-  } catch (error) {
-    return res.status(400).json({ message: "Profile update failed" });
-  }
-};
-
-export const logout = async (req: Request, res: Response) => {
-  try {
-    const token = req.cookies?.refreshToken as string | undefined;
-
-    if (token) {
-      await User.updateOne(
-        { refresh_token: token },
-        { $unset: { refresh_token: "" } },
-      );
-    }
-
-    res
-      .clearCookie("accessToken", getClearCookieOptions())
-      .clearCookie("refreshToken", getClearCookieOptions());
-
-    return sendSuccess(res, 200, "Logged out");
-  } catch (error) {
-    return sendError(res, 400, "Logout failed");
+    return sendError(res, 400, "Failed to fetch user");
   }
 };
 
@@ -250,18 +203,23 @@ export const updateMe = async (req: Request, res: Response) => {
   }
 };
 
-export const getMe = async (req: Request, res: Response) => {
+export const logout = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user!.userId)
-      .select("-password_hash -refresh_token")
-      .populate("client");
+    const token = req.cookies?.refreshToken as string | undefined;
 
-    if (!user) {
-      return sendError(res, 404, "User not found");
+    if (token) {
+      await User.updateOne(
+        { refresh_token: token },
+        { $unset: { refresh_token: "" } },
+      );
     }
 
-    return sendSuccess(res, 200, "Current user", { user });
+    res
+      .clearCookie("accessToken", getClearCookieOptions())
+      .clearCookie("refreshToken", getClearCookieOptions());
+
+    return sendSuccess(res, 200, "Logged out");
   } catch (error) {
-    return sendError(res, 400, "Failed to fetch user");
+    return sendError(res, 400, "Logout failed");
   }
 };

@@ -1,7 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import { verifyAccessToken, type AccessTokenPayload } from "../utils/jwt";
 import type { Request, Response, NextFunction } from "express";
-import { verifyAccessToken, AccessTokenPayload } from "../utils/jwt";
+import { verifyAccessToken, type AccessTokenPayload } from "../utils/jwt";
 
 declare global {
   namespace Express {
@@ -35,4 +33,3 @@ export const authenticate = (
       .json({ success: false, message: "Invalid or expired token" });
   }
 };
-

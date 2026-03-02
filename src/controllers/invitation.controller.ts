@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Invitation from "../models/Invitation";
 import User from "../models/User";
@@ -34,7 +34,7 @@ export const createInvitation = async (req: Request, res: Response) => {
       email,
       role,
       created_by: req.user!.userId,
-    });
+    } as any);
 
     const inviteUrl = `${clientUrl()}/invite/${invitation.token}`;
 
@@ -68,7 +68,7 @@ export const createInvitation = async (req: Request, res: Response) => {
 
 export const validateInvitation = async (req: Request, res: Response) => {
   try {
-    const { token } = req.params;
+    const token = req.params.token as string;
 
     const invitation = await Invitation.findOne({ token, used: false });
 
@@ -94,7 +94,7 @@ export const validateInvitation = async (req: Request, res: Response) => {
 
 export const registerViaInvitation = async (req: Request, res: Response) => {
   try {
-    const { token } = req.params;
+    const token = req.params.token as string;
     const { name, password, phone, language } = req.body;
 
     const invitation = await Invitation.findOne({ token, used: false });
@@ -159,7 +159,7 @@ export const registerViaInvitation = async (req: Request, res: Response) => {
   }
 };
 
-export const listInvitations = async (req: Request, res: Response) => {
+export const listInvitations = async (_req: Request, res: Response) => {
   try {
     const invitations = await Invitation.find()
       .sort({ expires_at: -1 })

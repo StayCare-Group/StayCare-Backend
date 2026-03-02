@@ -299,7 +299,7 @@ export const reassignOrder = async (req: Request, res: Response) => {
     if (!driver_id) return sendError(res, 400, "driver_id is required");
 
     const route = await reassignOrderToDriver(
-      req.params.id,
+      req.params.id as string,
       driver_id,
       req.user!.userId,
     );

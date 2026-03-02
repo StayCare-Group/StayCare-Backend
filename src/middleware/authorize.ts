@@ -1,6 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import type { UserRole } from "../utils/jwt";
 import type { Request, Response, NextFunction } from "express";
+import type { UserRole } from "../utils/jwt";
 
 export const authorize =
   (...allowedRoles: UserRole[]) =>
@@ -21,4 +20,3 @@ export const authorize =
 
     return next();
   };
-
