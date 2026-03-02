@@ -103,8 +103,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
 export const getMe = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user!.userId)
-      .select("-password_hash -refresh_token")
-      .populate("client");
+      .select("-password_hash -refresh_token");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
