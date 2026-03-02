@@ -63,6 +63,7 @@ export const register = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        language: user.language,
       },
     });
   } catch (error) {
@@ -110,6 +111,7 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        language: user.language,
       },
     });
   } catch (error) {
@@ -128,7 +130,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
     const decoded = verifyRefreshToken(token);
 
     const user = await User.findById(decoded.userId).select(
-      "role email name refresh_token",
+      "role email name language refresh_token",
     );
 
     if (!user || user.refresh_token !== token) {
@@ -150,6 +152,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        language: user.language,
       },
     });
   } catch (error) {
@@ -175,6 +178,33 @@ export const logout = async (req: Request, res: Response) => {
     return sendSuccess(res, 200, "Logged out");
   } catch (error) {
     return sendError(res, 400, "Logout failed");
+  }
+};
+
+export const updateMe = async (req: Request, res: Response) => {
+  try {
+    const allowedFields = ["name", "email", "phone", "language"];
+    const updateData: Record<string, any> = { updated_at: new Date() };
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user!.userId,
+      updateData,
+      { new: true },
+    ).select("-password_hash -refresh_token");
+
+    if (!user) {
+      return sendError(res, 404, "User not found");
+    }
+
+    return sendSuccess(res, 200, "Profile updated", { user });
+  } catch (error) {
+    return sendError(res, 400, "Profile update failed");
   }
 };
 
