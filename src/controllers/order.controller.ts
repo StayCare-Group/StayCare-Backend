@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Order from "../models/Orders";
 import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
+import { autoAssignRoute, reassignOrderToDriver } from "../utils/autoAssignRoute";
 
 const generateOrderNumber = (): string => {
   const date = new Date();
@@ -46,7 +47,17 @@ export const createOrder = async (req: Request, res: Response) => {
     }
 
     const order = await Order.create(orderData);
-    return sendSuccess(res, 201, "Order created", order);
+
+    // Auto-assign the new order to a driver route (best-effort — never fails the request)
+    try {
+      await autoAssignRoute(order);
+    } catch (_) {}
+
+    // Re-fetch so the response reflects any status / deliver_id updates from assignment
+    const updatedOrder = await Order.findById(order._id)
+      .populate("deliver_id", "name email phone");
+
+    return sendSuccess(res, 201, "Order created", updatedOrder ?? order);
   } catch (error) {
     return sendError(res, 400, "Order creation failed");
   }
@@ -275,6 +286,28 @@ export const confirmDelivery = async (req: Request, res: Response) => {
     return sendSuccess(res, 200, "Delivery confirmed", order);
   } catch (error) {
     return sendError(res, 400, "Delivery confirmation failed");
+  }
+};
+
+/**
+ * Admin / staff only — move an order to a different driver.
+ * Body: { driver_id: string }
+ */
+export const reassignOrder = async (req: Request, res: Response) => {
+  try {
+    const { driver_id } = req.body;
+    if (!driver_id) return sendError(res, 400, "driver_id is required");
+
+    const route = await reassignOrderToDriver(
+      req.params.id,
+      driver_id,
+      req.user!.userId,
+    );
+
+    const order = await Order.findById(req.params.id).populate("deliver_id", "name email phone");
+    return sendSuccess(res, 200, "Order reassigned", { order, route });
+  } catch (error: any) {
+    return sendError(res, 400, error?.message ?? "Reassignment failed");
   }
 };
 

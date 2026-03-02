@@ -8,6 +8,7 @@ import {
   confirmPickup,
   receiveAtFacility,
   confirmDelivery,
+  reassignOrder,
   deleteOrder,
 } from "../controllers/order.controller";
 import { validate } from "../middleware/validate";
@@ -70,6 +71,12 @@ router.patch(
   authorize("driver", "admin"),
   validate(deliveryConfirmSchema),
   confirmDelivery,
+);
+
+router.patch(
+  "/:id/reassign",
+  authorize("admin", "staff"),
+  reassignOrder,
 );
 
 router.delete("/:id", authorize("admin"), deleteOrder);
