@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Route from "../models/Routes";
 import Order from "../models/Orders";
 import { sendSuccess, sendError } from "../utils/response";
+import { parsePagination, paginationMeta } from "../utils/paginate";
 
 export const createRoute = async (req: Request, res: Response) => {
   try {
@@ -41,15 +42,21 @@ export const getAllRoutes = async (req: Request, res: Response) => {
       filter.route_date = { $gte: d, $lt: nextDay };
     }
 
-    const routes = await Route.find(filter)
-      .populate("driver", "name email phone")
-      .populate({
-        path: "orders",
-        populate: { path: "client", select: "company_name" },
-      })
-      .sort({ route_date: -1 });
+    const { page, limit, skip } = parsePagination(req);
+    const [routes, total] = await Promise.all([
+      Route.find(filter)
+        .populate("driver", "name email phone")
+        .populate({
+          path: "orders",
+          populate: { path: "client", select: "company_name contact_person phone properties billing_address" },
+        })
+        .sort({ route_date: -1 })
+        .skip(skip)
+        .limit(limit),
+      Route.countDocuments(filter),
+    ]);
 
-    return sendSuccess(res, 200, "Routes retrieved", routes);
+    return sendSuccess(res, 200, "Routes retrieved", routes, paginationMeta(total, page, limit));
   } catch (error) {
     return sendError(res, 400, "Failed to fetch routes");
   }
@@ -62,7 +69,7 @@ export const getRouteById = async (req: Request, res: Response) => {
       .populate({
         path: "orders",
         populate: [
-          { path: "client", select: "company_name contact_person phone" },
+          { path: "client", select: "company_name contact_person phone properties billing_address" },
         ],
       });
 

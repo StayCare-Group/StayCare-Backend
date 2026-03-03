@@ -3,6 +3,7 @@ import Invoice from "../models/Invoices";
 import Order from "../models/Orders";
 import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
+import { parsePagination, paginationMeta } from "../utils/paginate";
 
 const generateInvoiceNumber = (): string => {
   const date = new Date();
@@ -58,12 +59,18 @@ export const getAllInvoices = async (req: Request, res: Response) => {
       if (to) filter.issue_date.$lte = new Date(to as string);
     }
 
-    const invoices = await Invoice.find(filter)
-      .populate("client", "company_name contact_person email")
-      .populate("orders", "order_number status")
-      .sort({ created_at: -1 });
+    const { page, limit, skip } = parsePagination(req);
+    const [invoices, total] = await Promise.all([
+      Invoice.find(filter)
+        .populate("client", "company_name contact_person email")
+        .populate("orders", "order_number status")
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Invoice.countDocuments(filter),
+    ]);
 
-    return sendSuccess(res, 200, "Invoices retrieved", invoices);
+    return sendSuccess(res, 200, "Invoices retrieved", invoices, paginationMeta(total, page, limit));
   } catch (error) {
     return sendError(res, 400, "Failed to fetch invoices");
   }

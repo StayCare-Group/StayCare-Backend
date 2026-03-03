@@ -4,6 +4,7 @@ interface ApiResponse {
   success: boolean;
   message: string;
   data?: any;
+  pagination?: { page: number; limit: number; total: number; pages: number };
 }
 
 export const sendSuccess = (
@@ -11,9 +12,11 @@ export const sendSuccess = (
   statusCode: number,
   message: string,
   data?: any,
+  pagination?: ApiResponse["pagination"],
 ) => {
   const body: ApiResponse = { success: true, message };
   if (data !== undefined) body.data = data;
+  if (pagination) body.pagination = pagination;
   return res.status(statusCode).json(body);
 };
 
