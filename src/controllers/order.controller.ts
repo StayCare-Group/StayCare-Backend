@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Order from "../models/Orders";
+import Invoice from "../models/Invoices";
 import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
 import { autoAssignRoute, reassignOrderToDriver } from "../utils/autoAssignRoute";
@@ -283,7 +284,72 @@ export const confirmDelivery = async (req: Request, res: Response) => {
     order.updated_at = new Date();
 
     await order.save();
-    return sendSuccess(res, 200, "Delivery confirmed", order);
+
+    // ── Auto-generate invoice ──────────────────────────────────
+    try {
+      const now = new Date();
+      const y = now.getFullYear().toString().slice(-2);
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      const invoiceNumber = `INV-${y}${m}-${rand}`;
+
+      // Build line items from order items
+      const lineItems = (order.items ?? []).map((item) => ({
+        description: item.name,
+        quantity: item.quantity ?? 1,
+        unit_price: item.unit_price ?? 0,
+        total_price: item.total_price ?? 0,
+      }));
+
+      // If order has no items, create a single line from the bag count
+      if (lineItems.length === 0) {
+        lineItems.push({
+          description: `Laundry service – ${order.service_type} (${order.actual_bags ?? order.estimated_bags ?? 1} bags)`,
+          quantity: order.actual_bags ?? order.estimated_bags ?? 1,
+          unit_price:
+            order.pricing_snapshot?.subtotal
+              ? order.pricing_snapshot.subtotal / (order.actual_bags ?? order.estimated_bags ?? 1)
+              : 0,
+          total_price: order.pricing_snapshot?.subtotal ?? 0,
+        });
+      }
+
+      const dueDate = new Date(now);
+      dueDate.setDate(dueDate.getDate() + 14); // Net-14 payment terms
+
+      const invoice = await Invoice.create({
+        invoice_number: invoiceNumber,
+        client: order.client,
+        orders: [order._id] as any,
+        issue_date: now,
+        due_date: dueDate,
+        line_items: lineItems,
+        subtotal: order.pricing_snapshot?.subtotal ?? 0,
+        vat_percentage: order.pricing_snapshot?.vat_percentage ?? 18,
+        vat_amount: order.pricing_snapshot?.vat_amount ?? 0,
+        total: order.pricing_snapshot?.total ?? 0,
+        status: "pending",
+      });
+
+      // Move order to Invoiced
+      order.status = "Invoiced";
+      order.status_history.push({
+        status: "Invoiced",
+        changed_by: req.user!.userId,
+        timestamp: new Date(),
+      });
+      order.updated_at = new Date();
+      await order.save();
+
+      return sendSuccess(res, 200, "Delivery confirmed & invoice created", {
+        order,
+        invoice,
+      });
+    } catch (invoiceErr) {
+      // Invoice creation failed but delivery was already confirmed
+      // Return success for the delivery but include a warning
+      return sendSuccess(res, 200, "Delivery confirmed (invoice generation failed)", order);
+    }
   } catch (error) {
     return sendError(res, 400, "Delivery confirmation failed");
   }
