@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Order from "../models/Orders";
 import Invoice from "../models/Invoices";
 import User from "../models/User";
+import Client from "../models/Clients";
 import { sendSuccess, sendError } from "../utils/response";
 import { autoAssignRoute, reassignOrderToDriver } from "../utils/autoAssignRoute";
 
@@ -45,6 +46,25 @@ export const createOrder = async (req: Request, res: Response) => {
         return sendError(res, 400, "Your account has no linked client. Complete company setup first.");
       }
       orderData.client = user.client;
+    } else {
+      // admin / staff must supply a client id
+      if (!orderData.client) {
+        return sendError(res, 400, "client field is required when an admin creates an order");
+      }
+    }
+
+    // If a property is specified, verify it belongs to the resolved client
+    if (orderData.property && orderData.client) {
+      const clientDoc = await Client.findById(orderData.client);
+      if (!clientDoc) {
+        return sendError(res, 404, "Client not found");
+      }
+      const propertyBelongs = (clientDoc.properties as any[]).some(
+        (p) => p._id.toString() === orderData.property.toString(),
+      );
+      if (!propertyBelongs) {
+        return sendError(res, 400, "The specified property does not belong to this client");
+      }
     }
 
     const order = await Order.create(orderData);
@@ -392,5 +412,68 @@ export const deleteOrder = async (req: Request, res: Response) => {
     return sendSuccess(res, 200, "Order deleted");
   } catch (error) {
     return sendError(res, 400, "Order deletion failed");
+  }
+};
+
+export const rescheduleOrder = async (req: Request, res: Response) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return sendError(res, 404, "Order not found");
+    }
+
+    if (!['Pending', 'Assigned'].includes(order.status)) {
+      return sendError(res, 400, "Only Pending or Assigned orders can be rescheduled");
+    }
+
+    // Clients can only reschedule their own orders
+    if (req.user!.role === 'client') {
+      const user = await User.findById(req.user!.userId).select('client');
+      const orderClientId =
+        (order.client as any)?._id?.toString() ?? (order.client as any)?.toString?.();
+      if (!user?.client || user.client.toString() !== orderClientId) {
+        return sendError(res, 403, 'Forbidden');
+      }
+    }
+
+    const { pickup_date, pickup_window } = req.body;
+
+    // Push a rescheduled note into status_history (keeps current status)
+    order.status_history.push({
+      status: order.status,
+      changed_by: req.user!.userId,
+      timestamp: new Date(),
+      note: 'Rescheduled',
+    } as any);
+
+    // If the order was already assigned to a route, unassign it
+    if (order.status === 'Assigned') {
+      const Route = require('../models/Routes').default;
+      await Route.updateMany(
+        { orders: order._id, status: { $ne: 'completed' } },
+        { $pull: { orders: order._id } },
+      );
+      order.status = 'Pending';
+      order.deliver_id = undefined as any;
+    }
+
+    order.pickup_date = new Date(pickup_date);
+    order.pickup_window = {
+      start_time: new Date(pickup_window.start_time),
+      end_time: new Date(pickup_window.end_time),
+    };
+    order.updated_at = new Date();
+
+    await order.save();
+
+    // Best-effort re-assign to a route for the new date
+    try {
+      await autoAssignRoute(order);
+    } catch (_) {}
+
+    const updated = await Order.findById(order._id).populate('deliver_id', 'name email phone');
+    return sendSuccess(res, 200, 'Order rescheduled', updated ?? order);
+  } catch (error) {
+    return sendError(res, 400, 'Reschedule failed');
   }
 };
