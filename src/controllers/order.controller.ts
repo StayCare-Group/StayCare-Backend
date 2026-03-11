@@ -330,7 +330,6 @@ export const confirmDelivery = async (req: Request, res: Response) => {
 
     await order.save();
     notifyClientOfStatus(order._id.toString(), "Delivered");
-    return sendSuccess(res, 200, "Delivery confirmed", order);
 
     // ── Auto-generate invoice ──────────────────────────────────
     try {
