@@ -262,8 +262,12 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
 export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { token } = req.params;
+    const token = req.params.token;
     const { password } = req.body;
+
+    if (typeof token !== "string") {
+      return sendError(res, 400, "Reset token is required");
+    }
 
     if (!password || password.length < 6) {
       return sendError(res, 400, "Password must be at least 6 characters");
