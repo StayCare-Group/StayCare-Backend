@@ -124,3 +124,14 @@ export const deliveryConfirmSchema = z.object({
   }),
   params: z.object({ id: z.string() }),
 });
+
+export const rescheduleOrderSchema = z.object({
+  body: z.object({
+    pickup_date: z.string().min(1),
+    pickup_window: z.object({
+      start_time: z.string().min(1),
+      end_time: z.string().min(1),
+    }),
+  }),
+  params: z.object({ id: z.string() }),
+});

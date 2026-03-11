@@ -25,6 +25,14 @@ router.post(
   createItem,
 );
 
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("admin"),
+  validate(updateItemSchema),
+  updateItem,
+);
+
 router.put(
   "/:id",
   authenticate,

@@ -4,7 +4,7 @@ export interface IItems extends Document {
   item_code: string;
   name: string;
   base_price: number;
-  is_active: boolean;
+  active: boolean;
 }
 
 const itemsSchema = new Schema<IItems>(
@@ -21,7 +21,7 @@ const itemsSchema = new Schema<IItems>(
         type: Number,
         required: true,
     },
-    is_active: {
+    active: {
         type: Boolean,
         required: true,
         default: true,

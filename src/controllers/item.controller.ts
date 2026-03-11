@@ -19,8 +19,8 @@ export const createItem = async (req: Request, res: Response) => {
 export const getAllItems = async (req: Request, res: Response) => {
   try {
     const filter: Record<string, any> = {};
-    if (req.query.active === "true") filter.is_active = true;
-    if (req.query.active === "false") filter.is_active = false;
+    if (req.query.active === "true") filter.active = true;
+    if (req.query.active === "false") filter.active = false;
 
     const items = await Item.find(filter).sort({ item_code: 1 });
     return sendSuccess(res, 200, "Items retrieved", items);
@@ -57,17 +57,13 @@ export const updateItem = async (req: Request, res: Response) => {
 
 export const deleteItem = async (req: Request, res: Response) => {
   try {
-    const item = await Item.findByIdAndUpdate(
-      req.params.id,
-      { is_active: false },
-      { new: true },
-    );
+    const item = await Item.findByIdAndDelete(req.params.id);
     if (!item) {
       return sendError(res, 404, "Item not found");
     }
-    return sendSuccess(res, 200, "Item deactivated", item);
+    return sendSuccess(res, 200, "Item deleted");
   } catch (error) {
-    return sendError(res, 400, "Item deactivation failed");
+    return sendError(res, 400, "Item deletion failed");
   }
 };
 

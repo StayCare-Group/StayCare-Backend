@@ -5,7 +5,7 @@ export const createItemSchema = z.object({
     item_code: z.string().min(1),
     name: z.string().min(1),
     base_price: z.number().positive(),
-    is_active: z.boolean().optional(),
+    active: z.boolean().optional(),
   }),
 });
 
@@ -14,7 +14,7 @@ export const updateItemSchema = z.object({
     item_code: z.string().min(1).optional(),
     name: z.string().min(1).optional(),
     base_price: z.number().positive().optional(),
-    is_active: z.boolean().optional(),
+    active: z.boolean().optional(),
   }),
   params: z.object({ id: z.string() }),
 });

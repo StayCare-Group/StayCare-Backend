@@ -10,6 +10,7 @@ import {
   confirmDelivery,
   reassignOrder,
   deleteOrder,
+  rescheduleOrder,
 } from "../controllers/order.controller";
 import { validate } from "../middleware/validate";
 import {
@@ -19,6 +20,7 @@ import {
   pickupConfirmSchema,
   facilityReceiveSchema,
   deliveryConfirmSchema,
+  rescheduleOrderSchema,
 } from "../validation/order.validation";
 import { authenticate } from "../middleware/authenticate";
 import { authorize } from "../middleware/authorize";
@@ -77,6 +79,13 @@ router.patch(
   "/:id/reassign",
   authorize("admin", "staff"),
   reassignOrder,
+);
+
+router.patch(
+  "/:id/reschedule",
+  authorize("admin", "staff", "client"),
+  validate(rescheduleOrderSchema),
+  rescheduleOrder,
 );
 
 router.delete("/:id", authorize("admin"), deleteOrder);

@@ -32,6 +32,7 @@ export interface IOrders extends Document {
     status: string;
     changed_by: Schema.Types.ObjectId | string;
     timestamp: Date;
+    note?: string;
   }[];
   photos: {
     photo_url: string;
@@ -148,6 +149,9 @@ const ordersSchema = new Schema<IOrders>(
             timestamp: {
                 type: Date,
                 required: true,
+            },
+            note: {
+                type: String,
             },
         }
     ],
