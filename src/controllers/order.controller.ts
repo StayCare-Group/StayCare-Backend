@@ -4,7 +4,24 @@ import Invoice from "../models/Invoices";
 import User from "../models/User";
 import Client from "../models/Clients";
 import { sendSuccess, sendError } from "../utils/response";
+import { parsePagination, paginationMeta } from "../utils/paginate";
 import { autoAssignRoute, reassignOrderToDriver } from "../utils/autoAssignRoute";
+import { sendOrderStatusEmail } from "../utils/mail";
+
+const NOTIFY_STATUSES = new Set([
+  "Assigned", "Transit", "Arrived", "ReadyToDeliver", "Delivered", "Completed",
+]);
+
+async function notifyClientOfStatus(orderId: string, newStatus: string): Promise<void> {
+  if (!NOTIFY_STATUSES.has(newStatus)) return;
+  try {
+    const order = await Order.findById(orderId).select("order_number client");
+    if (!order) return;
+    const client = await Client.findById(order.client).select("email contact_person");
+    if (!client?.email) return;
+    await sendOrderStatusEmail(client.email, order.order_number, newStatus, client.contact_person);
+  } catch { /* best-effort */ }
+}
 
 const generateOrderNumber = (): string => {
   const date = new Date();
@@ -110,12 +127,18 @@ export const getAllOrders = async (req: Request, res: Response) => {
       if (to) filter.created_at.$lte = new Date(to as string);
     }
 
-    const orders = await Order.find(filter)
-      .populate("client", "company_name contact_person email")
-      .populate("deliver_id", "name email")
-      .sort({ created_at: -1 });
+    const { page, limit, skip } = parsePagination(req);
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate("client", "company_name contact_person email properties billing_address")
+        .populate("deliver_id", "name email")
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments(filter),
+    ]);
 
-    return sendSuccess(res, 200, "Orders retrieved", orders);
+    return sendSuccess(res, 200, "Orders retrieved", orders, paginationMeta(total, page, limit));
   } catch (error) {
     return sendError(res, 400, "Failed to fetch orders");
   }
@@ -191,6 +214,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     order.updated_at = new Date();
 
     await order.save();
+    notifyClientOfStatus(order._id.toString(), status);
     return sendSuccess(res, 200, "Order status updated", order);
   } catch (error) {
     return sendError(res, 400, "Status update failed");
@@ -236,6 +260,7 @@ export const confirmPickup = async (req: Request, res: Response) => {
     order.updated_at = new Date();
 
     await order.save();
+    notifyClientOfStatus(order._id.toString(), "Transit");
     return sendSuccess(res, 200, "Pickup confirmed", order);
   } catch (error) {
     return sendError(res, 400, "Pickup confirmation failed");
@@ -304,6 +329,8 @@ export const confirmDelivery = async (req: Request, res: Response) => {
     order.updated_at = new Date();
 
     await order.save();
+    notifyClientOfStatus(order._id.toString(), "Delivered");
+    return sendSuccess(res, 200, "Delivery confirmed", order);
 
     // ── Auto-generate invoice ──────────────────────────────────
     try {

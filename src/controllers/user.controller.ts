@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import { sendSuccess, sendError } from "../utils/response";
+import { parsePagination, paginationMeta } from "../utils/paginate";
 
 const SALT_ROUNDS = 10;
 
@@ -32,11 +33,17 @@ export const getAllUsers = async (req: Request, res: Response) => {
     if (role) filter.role = role;
     if (is_active !== undefined) filter.is_active = is_active === "true";
 
-    const users = await User.find(filter)
-      .select("-password_hash -refresh_token")
-      .populate("client");
+    const { page, limit, skip } = parsePagination(req);
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select("-password_hash -refresh_token")
+        .populate("client")
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(filter),
+    ]);
 
-    return sendSuccess(res, 200, "Users retrieved", users);
+    return sendSuccess(res, 200, "Users retrieved", users, paginationMeta(total, page, limit));
   } catch (error) {
     return sendError(res, 400, "Failed to fetch users");
   }

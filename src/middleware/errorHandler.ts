@@ -14,10 +14,15 @@ export const errorHandler = (
     });
   }
 
-  console.error("Unhandled error:", err);
+  const isDev = process.env.NODE_ENV === "development";
+  if (isDev) {
+    console.error("Unhandled error:", err.stack ?? err);
+  } else {
+    console.error("Unhandled error:", err.message);
+  }
 
   return res.status(500).json({
     success: false,
-    message: "Internal server error",
+    message: isDev ? err.message : "Internal server error",
   });
 };

@@ -11,6 +11,7 @@ import itemRoutes from "./routes/item.routes";
 import routeRoutes from "./routes/route.routes";
 import facilityRoutes from "./routes/facility.routes";
 import invitationRoutes from "./routes/invitation.routes";
+import reportRoutes from "./routes/report.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -37,6 +38,7 @@ app.use("/api/items", itemRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/facility", facilityRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.use(errorHandler);
 

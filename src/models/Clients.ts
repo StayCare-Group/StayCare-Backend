@@ -16,6 +16,8 @@ export interface IClients extends Document {
     city: string;
     area: string;
     access_notes: string;
+    lat?: number;
+    lng?: number;
   }[];
 }
 
@@ -72,16 +74,18 @@ const clientsSchema = new Schema<IClients>(
             },
             city: {
                 type: String,
-                required: true,
+                default: "",
             },
             area: {
                 type: String,
-                required: true,
+                default: "",
             },
             access_notes: {
                 type: String,
-                required: true,
+                default: "",
             },
+            lat: { type: Number },
+            lng: { type: Number },
         }
     ]
   },

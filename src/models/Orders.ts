@@ -30,7 +30,7 @@ export interface IOrders extends Document {
   };
   status_history: {
     status: string;
-    changed_by: string;
+    changed_by: Schema.Types.ObjectId | string;
     timestamp: Date;
     note?: string;
   }[];
@@ -56,7 +56,6 @@ const ordersSchema = new Schema<IOrders>(
     },
     property: {
       type: Schema.Types.ObjectId,
-      ref: "Properties",
     },
     service_type: {
       type: String,
@@ -144,8 +143,7 @@ const ordersSchema = new Schema<IOrders>(
                 required: true,
             },
             changed_by: {
-                type: Schema.Types.ObjectId,
-                ref: "User",
+                type: Schema.Types.Mixed,
                 required: true,
             },
             timestamp: {

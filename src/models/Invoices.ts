@@ -9,6 +9,8 @@ export interface IInvoices extends Document {
   line_items: {
     description: string;
     quantity: number;
+    unit_price: number;
+    total_price: number;
   }[];
   subtotal: number;
   vat_percentage: number;

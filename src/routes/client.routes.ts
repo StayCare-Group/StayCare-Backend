@@ -9,6 +9,9 @@ import {
   addProperty,
   updateProperty,
   deleteProperty,
+  addSelfProperty,
+  updateSelfProperty,
+  deleteSelfProperty,
 } from "../controllers/client.controller";
 import { validate } from "../middleware/validate";
 import {
@@ -29,6 +32,24 @@ router.post(
   authorize("client", "admin", "staff"),
   validate(createClientSchema),
   createClientForCurrentUser,
+);
+
+router.post(
+  "/self/properties",
+  authorize("client"),
+  validate(addPropertySchema),
+  addSelfProperty,
+);
+router.put(
+  "/self/properties/:propertyId",
+  authorize("client"),
+  validate(updatePropertySchema),
+  updateSelfProperty,
+);
+router.delete(
+  "/self/properties/:propertyId",
+  authorize("client"),
+  deleteSelfProperty,
 );
 
 router.post(
